@@ -5,11 +5,30 @@ from .schemas import ProductoIn
 
 app = FastAPI()
 
-@app.get("/productos")
-def listar_productos():
-    with get_conn() as conn:
-        return conn.execute("SELECT * FROM productos ORDER BY id").fetchall()
+import os
+from fastapi.middleware.cors import CORSMiddleware
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/productos")
+def listar_productos(q: str | None = None, categoria: str | None = None):
+    sql = "SELECT * FROM productos WHERE 1=1"
+    params = []
+    if q:
+        sql += " AND nombre ILIKE %s"
+        params.append(f"%{q}%")
+    if categoria:
+        sql += " AND categoria = %s"
+        params.append(categoria)
+    sql += " ORDER BY id"
+    with get_conn() as conn:
+        return conn.execute(sql, params).fetchall()
+    
 @app.post("/productos", status_code=201)
 def crear_producto(producto: ProductoIn):
     try:
